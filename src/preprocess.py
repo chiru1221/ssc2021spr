@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
+from sklearn.decomposition import PCA
 
 def convert_notation(df):
     split_tempo = lambda x: x.split('-')
@@ -46,3 +47,33 @@ def region_grouping(train_df, test_df, target_cols, diff=True):
     else:
         return group
 
+def correlation_to_pca(train_df, test_df):
+    all_df = pd.concat([train_df[test_df.columns], test_df])
+    all_df = all_df.reset_index(drop=True)
+    train_fill_df, test_fill_df = train_df.copy(), test_df.copy()
+    for col in all_df.columns[all_df.isna().sum() > 0].values:
+        all_df[col] = all_df[col].fillna(value=all_df[col].median())
+        train_fill_df[col] = train_fill_df[col].fillna(value=all_df[col].median())
+        test_fill_df[col] = test_fill_df[col].fillna(value=all_df[col].median())
+    
+    pca = PCA(n_components=1, random_state=0)
+    pca.fit(all_df[['loudness', 'acousticness']])
+    train_df['pca_loudness_acousticness'] = pca.transform(train_fill_df[['loudness', 'acousticness']])
+    test_df['pca_loudness_acousticness'] = pca.transform(test_fill_df[['loudness', 'acousticness']])
+    
+    pca = PCA(n_components=1, random_state=0)
+    pca.fit(all_df[['energy', 'acousticness']])
+    train_df['pca_energy_acousticness'] = pca.transform(train_fill_df[['energy', 'acousticness']])
+    test_df['pca_energy_acousticness'] = pca.transform(test_fill_df[['energy', 'acousticness']])
+    
+    pca = PCA(n_components=1, random_state=0)
+    pca.fit(all_df[['danceability', 'positiveness']])
+    train_df['pca_danceability_positiveness'] = pca.transform(train_fill_df[['danceability', 'positiveness']])
+    test_df['pca_danceability_positiveness'] = pca.transform(test_fill_df[['danceability', 'positiveness']])
+    
+    pca = PCA(n_components=1, random_state=0)
+    pca.fit(all_df[['energy', 'loudness']])
+    train_df['pca_energy_loudness'] = pca.transform(train_fill_df[['energy', 'loudness']])
+    test_df['pca_energy_loudness'] = pca.transform(test_fill_df[['energy', 'loudness']])
+    
+    return train_df, test_df
