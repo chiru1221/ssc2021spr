@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.decomposition import PCA
+from scipy.stats import skew, kurtosis
 
 def convert_notation(df):
     split_tempo = lambda x: x.split('-')
@@ -46,6 +47,22 @@ def region_grouping(train_df, test_df, target_cols, diff=True):
         return diff_mean_diff_std(train_df), diff_mean_diff_std(test_df)
     else:
         return group
+
+def region_additional_group(train_df, test_df, target_cols):
+    df = pd.concat([train_df, test_df])
+    target_cols.append('region')
+    group = df[target_cols].groupby('region').agg([kurtosis, skew]).reset_index()
+    group.columns = ['_'.join(x) for x in group.columns.ravel()]
+    target_cols.remove('region')
+    def div_kurtosis_div_skew(df):
+        df = df.merge(group, how='left', left_on='region', right_on='region_')
+        df = df.drop('region_', axis=1)
+        for col in target_cols:
+            df['{0}_region_mean_div_kurtosis'.format(col)] = df['{0}_region_mean_diff'.format(col)] / df['{0}_kurtosis'.format(col)]
+            df['{0}_region_mean_div_skew'.format(col)] = df['{0}_region_mean_diff'.format(col)] / df['{0}_skew'.format(col)]
+        return df
+    return div_kurtosis_div_skew(train_df), div_kurtosis_div_skew(test_df)
+
 
 def correlation_to_pca(train_df, test_df):
     all_df = pd.concat([train_df[test_df.columns], test_df])
