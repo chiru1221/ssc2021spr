@@ -22,6 +22,13 @@ def region_encoding(train_df, test_df):
     # print(le.transform(['unknown']))
     return train_df, test_df, le
 
+def fillna_by_median(train_df, test_df):
+    all_df = pd.concat([train_df, test_df]).reset_index(drop=True)
+    na_col = all_df.columns[all_df.isna().sum() > 0]
+    for col in na_col:
+        all_df[col] = all_df[col].fillna(value=all_df[col].median())
+    return all_df.iloc[:train_df.shape[0]], all_df.iloc[train_df.shape[0]:]
+
 def region_fix(x, y, thre_count, encode):
     df = pd.concat([x, y], axis=1)
     group = df.groupby(['region', 'genre']).count().iloc[:, 0].reset_index()
@@ -30,7 +37,7 @@ def region_fix(x, y, thre_count, encode):
         x.iloc[index].region = encode
     return x
 
-def region_grouping(train_df, test_df, target_cols, diff=True):
+def region_grouping(train_df, test_df, target_cols, diff=True, drop=False):
     df = pd.concat([train_df, test_df])
     target_cols.append('region')
     group = df[target_cols].groupby('region').agg([np.mean, np.std]).reset_index()
@@ -43,12 +50,17 @@ def region_grouping(train_df, test_df, target_cols, diff=True):
             for col in target_cols:
                 df['{0}_region_mean_diff'.format(col)] = df[col] - df['{0}_mean'.format(col)]
                 df['{0}_region_mean_diff_region_std_diff'.format(col)] = df['{0}_region_mean_diff'.format(col)] - df['{0}_std'.format(col)]
+            
+            if drop:
+                columns = list(group.columns)
+                columns.remove('region_')
+                df = df.drop(columns=columns)
             return df
         return diff_mean_diff_std(train_df), diff_mean_diff_std(test_df)
     else:
         return group
 
-def region_additional_group(train_df, test_df, target_cols):
+def region_additional_group(train_df, test_df, target_cols, drop=False):
     df = pd.concat([train_df, test_df])
     target_cols.append('region')
     group = df[target_cols].groupby('region').agg([kurtosis, skew]).reset_index()
@@ -60,6 +72,11 @@ def region_additional_group(train_df, test_df, target_cols):
         for col in target_cols:
             df['{0}_region_mean_div_kurtosis'.format(col)] = df['{0}_region_mean_diff'.format(col)] / df['{0}_kurtosis'.format(col)]
             df['{0}_region_mean_div_skew'.format(col)] = df['{0}_region_mean_diff'.format(col)] / df['{0}_skew'.format(col)]
+        
+        if drop:
+            columns = list(group.columns)
+            columns.remove('region_')
+            df = df.drop(columns=columns)
         return df
     return div_kurtosis_div_skew(train_df), div_kurtosis_div_skew(test_df)
 

@@ -125,3 +125,4 @@ class Optuna_for_LGB:
         if self.early_stop:
             self.best_params['best_iteration_'] = self.best_iterations[study.best_trial.number]
         return self.best_params
+
