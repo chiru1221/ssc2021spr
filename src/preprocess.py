@@ -80,6 +80,35 @@ def region_additional_group(train_df, test_df, target_cols, drop=False):
         return df
     return div_kurtosis_div_skew(train_df), div_kurtosis_div_skew(test_df)
 
+def region_group_diff_div(train_df, test_df, target_cols, drop=False):
+    df = pd.concat([train_df, test_df])
+    target_cols.append('region')
+    group = df[target_cols].groupby('region').agg([np.mean, np.std, kurtosis, skew]).reset_index()
+    group.columns = ['_'.join(x) for x in group.columns.ravel()]
+    target_cols.remove('region')
+    def group_feature(df):
+        df = df.merge(group, how='left', left_on='region', right_on='region_')
+        df = df.drop('region_', axis=1)
+        for col in target_cols:
+            df['{0}_region_mean_diff'.format(col)] = df[col] - df['{0}_mean'.format(col)]
+            df['{0}_region_mean_diff_region_std_diff'.format(col)] = df['{0}_region_mean_diff'.format(col)] - df['{0}_std'.format(col)]
+            df['{0}_region_mean_diff_region_std_div'.format(col)] = df['{0}_region_mean_diff'.format(col)] / df['{0}_std'.format(col)]
+            df['{0}_region_mean_div'.format(col)] = df[col] / df['{0}_mean'.format(col)]
+            df['{0}_region_mean_div_region_std_diff'.format(col)] = df['{0}_region_mean_div'.format(col)] - df['{0}_std'.format(col)]
+            df['{0}_region_mean_div_region_std_div'.format(col)] = df['{0}_region_mean_div'.format(col)] / df['{0}_std'.format(col)]
+            df['{0}_region_mean_diff_kurtosis'.format(col)] = df['{0}_region_mean_diff'.format(col)] - df['{0}_kurtosis'.format(col)]
+            df['{0}_region_mean_diff_skew'.format(col)] = df['{0}_region_mean_diff'.format(col)] - df['{0}_skew'.format(col)]
+            df['{0}_region_mean_div_kurtosis'.format(col)] = df['{0}_region_mean_diff'.format(col)] / df['{0}_kurtosis'.format(col)]
+            df['{0}_region_mean_div_skew'.format(col)] = df['{0}_region_mean_diff'.format(col)] / df['{0}_skew'.format(col)]
+        
+        if drop:
+            columns = list(group.columns)
+            columns.remove('region_')
+            df = df.drop(columns=columns)
+        return df
+    return group_feature(train_df), group_feature(test_df)
+
+
 def grouping_by_region(train_df, test_df, target_cols):
     df = pd.concat([train_df, test_df])
     target_cols.append('region')
